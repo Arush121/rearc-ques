@@ -1,79 +1,107 @@
-# rearc-ques
+# Rearc Infrastructure Deployment
 
-Overview of the solution proposed
+## ✅ Proof of Completion
 
-## 1) Tools & Technologies
+All required features have been successfully implemented. Relevant screenshots are included in the `screenshots/` directory, covering the following areas:
 
-- 1.a) Terraform v1.7+ with AWS provider (>= 5.90)
-- 1.b) Remote state management via S3 backend & DynamoDB for state locking
-- 1.c) Terraform AWS Modules:
-  - vpc
-  - ec2-instance
-  - security-group
-  - alb
+- ✅ Public Cloud (AWS)  
+- ✅ Docker  
+- ✅ Secrets Management  
+- ✅ Load Balancer  
+- ✅ TLS/HTTPS  
+
+> **Note 1:** Although the infrastructure is fully deployed on AWS, the verification page incorrectly flags that AWS is not being used.  
+> **Note 2:** TLS was configured at the EC2 instance (localhost) level. Due to the absence of a registered domain, TLS was not applied at the ALB/domain level.
 
 ---
 
-## 2) Infrastructure Components
+## 💡 Improvements with More Time
 
-### 2.1) VPC Module
+- **Parameterization**  
+  I would externalize hardcoded values into `variables.tf` and `terraform.tfvars` files to enhance modularity, reusability, and support for multiple environments.
 
-- 2.1.1) CIDR Block: 10.0.0.0/16
-- 2.1.2) Subnets:
-  - 3 Public (10.0.101.0/24, etc.)
-  - 3 Private (10.0.1.0/24, etc.)
-- 2.1.3) High Availability across 3 AZs: us-east-1a, 1b, 1c
-- 2.1.4) Networking Features:
-  - NAT Gateway (1 shared)
-  - Internet Gateway
+- **HTTPS Support**  
+  With access to a registered domain and an ACM certificate, I would configure HTTPS on the ALB by attaching the TLS certificate to a listener on port 443.
+
+- **Infrastructure Granularity**  
+  I would replace the use of pre-built community modules for EC2, ALB, and security groups with custom `resource` blocks to gain greater control, flexibility, and visibility over the infrastructure.
+
+---
+
+## 🛠️ Solution Overview
+
+### 1. Tools & Technologies
+
+- **Terraform v1.7+** with AWS provider (≥ 5.90)
+- **Remote state management** via S3 backend & DynamoDB state locking
+- **Terraform AWS Modules Used:**
+  - VPC
+  - EC2 Instance
+  - Security Group
+  - ALB
+
+---
+
+### 2. Infrastructure Components
+
+#### 2.1. VPC Configuration
+
+- **CIDR Block:** `10.0.0.0/16`
+- **Subnets:**
+  - 3 Public subnets (e.g., `10.0.101.0/24`)
+  - 3 Private subnets (e.g., `10.0.1.0/24`)
+- **High Availability:** Spread across `us-east-1a`, `us-east-1b`, `us-east-1c`
+- **Networking Features:**
+  - Internet Gateway (IGW)
+  - NAT Gateway (single, shared)
   - DNS Support & Hostnames enabled
-  - Tagging for resource tracking (Terraform, subnet names)
+  - Resource tagging for traceability
 
-### 2.2) Security Groups
+#### 2.2. Security Groups
 
-- 2.2.1) Public Bastion SG (public-rearc-sg):
-  - Ingress: SSH (22) open to the world (0.0.0.0/0)
+- **Public Bastion SG (`public-rearc-sg`):**
+  - Ingress: SSH (port 22) from `0.0.0.0/0`
   - Egress: All traffic
 
-- 2.2.2) ALB SG (alb-sg):
-  - Ingress: HTTP (80) open to the world
+- **ALB SG (`alb-sg`):**
+  - Ingress: HTTP (port 80) from `0.0.0.0/0`
   - Egress: All traffic
 
-- 2.2.3) Private App SG (private-rearc-sg):
+- **Private App SG (`private-rearc-sg`):**
   - Ingress:
     - Port 22 from Bastion SG
     - Port 3000 from ALB SG
   - Egress: All traffic
 
-### 2.3) EC2 Instances
+#### 2.3. EC2 Instances
 
-- 2.3.1) Bastion Host (public-bastion)
-  - Public subnet
-  - SSH accessible
-  - t3.micro instance
+- **Bastion Host (`public-bastion`):**
+  - Deployed in public subnet
+  - Accessible via SSH
+  - Instance type: `t3.micro`
 
-- 2.3.2) App Server (private-rearc-server)
-  - Private subnet
-  - t3.medium instance
-  - Listens on port 3000
+- **App Server (`private-rearc-server`):**
+  - Deployed in private subnet
+  - No public IP
+  - Listens on port `3000`
+  - Instance type: `t3.medium`
 
-### 2.4) Application Load Balancer (ALB)
+#### 2.4. Application Load Balancer (ALB)
 
-- Type: Application (HTTP)
-- Attached to: Public subnets
-- Listener: Port 80 → Forward to target group
-- Target Group:
-  - Targets: Private EC2 instance
-  - Port: 3000 (App server)
-  - Health Check: /health on HTTP
+- **Type:** Application (HTTP)
+- **Attached Subnets:** Public
+- **Listener:** Port 80 → forwards to target group
+- **Target Group:**
+  - Instance target on port 3000
+  - Health check path: `/health` (HTTP)
 
-### 2.5) Connectivity & Access
+#### 2.5. Connectivity & Access
 
-- Bastion host in public subnet used for SSH access to private EC2
-- ALB routes internet traffic to app running on port 3000 in private instance
-- Strict, security-group-based traffic control — no public IP for private server
+- SSH access to private EC2 is enabled via the Bastion host
+- Public ALB forwards traffic to private app server
+- Private EC2 has no public IP — security group restrictions ensure controlled access
 
-### 2.6) Remote State Management
+#### 2.6. Remote State Management
 
-- State stored in S3 bucket: `brush-devops-terraform`
-- Locking via DynamoDB table: `rearc-lock`
+- **S3 Bucket:** `brush-devops-terraform`
+- **DynamoDB Table:** `rearc-lock` (for state locking)
