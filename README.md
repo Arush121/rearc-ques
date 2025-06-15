@@ -8,7 +8,7 @@ All required features have been successfully implemented. Relevant screenshots a
 - ✅ Docker  
 - ✅ Secrets Management  
 - ✅ Load Balancer  
-- ✅ TLS/HTTPS  
+
 
 > **Note 1:** Although the infrastructure is fully deployed on AWS, the verification page incorrectly flags that AWS is not being used.  
 > **Note 2:** TLS was configured at the EC2 instance (localhost) level. Due to the absence of a registered domain, TLS was not applied at the ALB/domain level.
